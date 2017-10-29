@@ -14,10 +14,11 @@
     stx))
 
 
-(define keywords (list '+ '-               ;Arithmetic
-                       'or 'and '! '=      ;Boolean
-                       '#t '#f        ;Boolean true/false
-                       'max 'min           ;Conditional arithmetic
+(define keywords (list '+ '-           ;Arithmetic
+                       'sub1 'add1     ; (sub1 a) is (- a 1) and (add1 a) (+ a 1)
+                       'or 'and '! '=  ;Boolean
+                       '#t '#f         ;Boolean true/false
+                       'max 'min       ;Conditional arithmetic
                        ;; '& '\| '^           ;Bitwise operator
                        '== '>= '<= '> '<   ;Integer comparison
                        'integer? 'boolean? ;Types
@@ -25,14 +26,15 @@
                        'if                 ;Conditionals
                        ))
 
+;; Type of the operands of an operator.
+;; The void? type represents either integer or boolean.
+;; The %top operator is the default operator used as the top
+;; operator when starting to parse an expression.
 (define (optype? op)
   (match op
     [(or '+ '- 'min 'max '>= '> '< '<= '==) 'integer?]
     [(or 'or 'and '! '=) 'boolean?]
     [(or 'if '%top) 'void?]))
-
-(define-namespace-anchor local_anchor)
-(define ns (namespace-anchor->namespace local_anchor))
 
 ;; Returns true is the syntax objects represents an id
 ;; that is not a keyword of the language.
@@ -76,21 +78,40 @@
 (define (make-all-rosette-decl lv)
   (datum->syntax #f (map make-rosette-decl lv)))
 
-;; Test
+
+
+;; ----------------------------------------------------------------------------
+;;                                         TESTS
+;; ----------------------------------------------------------------------------
+
+;; Parsing an expression from a file an getting the variables used in the
+;; expression
 (define expr-syntax (file->syntax "./example.expr"))
 (get-ids expr-syntax)
 
-;; Other examples/tests
+;; Other examples/tests with string inputs converted to syntax objects
 (get-ids (syntax a)) ;; --> (a, void?)
 (get-ids #'(+ a b));; --> '((a . integer?) (b . integer?))
 (get-ids #'(if (== x y) #t #f)) ;; --> '((x . integer?) (y . integer?))
 (get-ids #'(if (or x y) #t #f)) ;; --> '((x . boolean?) (y . boolean?))
+
+;; From the project inputs
+(get-ids #'(+ a b))
+(get-ids #'(if #t (+a 0) (- b 9)))
+(get-ids #'(+ (+ 1 a) (+ -1 b)))
+(get-ids #'(or (and a b) (and a b)))
+(get-ids #'(min (max (+ xm (min 0 0)) lm) (min xm2 lm2)))
+(get-ids #'(if (> (+ (- xmts lmts) xpos) (+ xaux_1 xpos)) xpos lpos))
+
+
 ;; Creates a syntax objects representing the declarations to make to
 ;; make sure all identifiers are defined in the expression.
 (define declarations
   (make-all-rosette-decl (get-ids #'(+ a b (- x y)))))
+
 ;; Pretty print the racket declarations.
 ;; Using pretty for a nicer output. In this case, it will automatically
 ;; jump lines between the declarations.
 (require racket/pretty)
+(println "Variable declarations")
 (pretty-print (syntax->datum declarations))
