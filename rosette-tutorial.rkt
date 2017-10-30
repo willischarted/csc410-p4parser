@@ -32,6 +32,8 @@
 ;; We can make a vector of them:
 (define A (vector a0 a1 a2))
 ;; We can define symbolic functions
+;; For example f is an uninterpreted function from integers to booleans
+(define-symbolic f (~> integer? boolean?))
 
 ;; Another possiblity: define a 'dynamic' variable
 ;; It gives a different symbolic value each tiem you evaluate
