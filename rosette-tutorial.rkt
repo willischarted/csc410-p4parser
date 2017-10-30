@@ -14,7 +14,7 @@
 ;; features of Rosette, stick to the safe subset.
 ;; We will do so in the tutorial.
 
-;; Se
+;; Set the precision of the solver
 (current-bitwidth #f)
 
 ;; 1 - Symbolic values
