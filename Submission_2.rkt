@@ -56,7 +56,7 @@
             l))))
 ;; Wrapper for add-ids starting from an empty list and
 ;; a dummy operator that types void
-(define (get-ids stx) (add-ids '%top stx (list )))
+(define (get-ids stx) (remove-duplicates (add-ids '%top stx (list ))) )
 ;; Create Rosette symbolic definition from identifier + type
 (define (make-rosette-decl v)
   (with-syntax
@@ -135,7 +135,7 @@
 ;;For Victor:
 ;;Here are examples of our make-rosette-simple with the example inputs  you have provided for us above.
 (println "Ex 1")
-(pretty-print (make-rosette-simple (syntax (if #t (+a 0) (- b 9)))))
+(pretty-print (make-rosette-simple (syntax (if #t (+ a 0) (- b 9)))))
 (println "Ex 2")
 (pretty-print (make-rosette-simple (syntax (+ (+ 1 a) (+ -1 b)))))
 (println "Ex 3")
