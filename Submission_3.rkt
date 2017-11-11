@@ -1,5 +1,11 @@
 #lang rosette
 (require racket/match)
+(require rosette/lib/synthax)
+
+;; ----------------------------------------------------------------------------
+;;                                  Starter Code
+;; ----------------------------------------------------------------------------
+
 ;; Returns a syntax object from reading the contents of a file.
 (define (file->syntax file)
   (define (read-syntax/count-lines)
@@ -70,6 +76,10 @@
 (define (make-all-rosette-decl lv)
   (datum->syntax #f (map make-rosette-decl lv)))
 
+;; ----------------------------------------------------------------------------
+;;                                    Our Code
+;; ----------------------------------------------------------------------------
+
 ;; Our make-rosette-simple function
 (define (make-rosette-simple formula) (append
                                        (generate-declarations (determineType (instance-types (syntax->datum formula))))
@@ -83,8 +93,18 @@
                                                                                                  (list (compute-height (syntax->datum formula) 0))))))))))
                                        ))
 
-;; A helper function to improve on make-all-rosette-decl. Generates the declarations of all
-;; variables in the function
+;; Our define-synthax function
+(define-synthax(gen-expression (booleanvariables ...) (integervariables ...) height)
+ #:base (choose booleanvariables ... integervariables ...)
+ #:else (choose
+         booleanvariables ... integervariables ...
+          ((choose >= > <= < + - && ||) (gen-expression (booleanvariables ...)  (integervariables ...) (- height 1))
+                        (gen-expression (booleanvariables ...)  (integervariables ...) (- height 1)))
+          )
+  )
+
+;; A helper function to improve on make-all-rosette-decl, using our improved type
+;; inferences. Generates the declarations of all variables in the function
 (define (generate-declarations variables) (if (null? variables)
                                               (list)
                                               (append (list (list 'define-symbolic (second (car variables)) (car (car variables))))
@@ -95,9 +115,7 @@
   (remove-duplicates (filter notinteger (removeops (syntax->datum lst))))
   )
 
-;; A helper function that lists the inferred types of all instances of all variables in the given formula
-(define (instance-types formula) (process-elements (rest formula) (optype? (car formula))))
-
+;; A recursive helper function that does most of the work for instance-types
 (define (process-elements elements type) (if (null? elements)
                                                (list)
                                                (if (list? (car elements))
@@ -106,9 +124,10 @@
                                                        (process-elements (rest elements) type)
                                                        (append (list (list type (car elements))) (process-elements (rest elements) type))))))
 
-;determines types of vars
+;; Infers the types of all variables in the formula
 (define (determineType lst)(determineTypeHelp (remove-duplicates lst)))
 
+;; Helper function for determineType
 (define (determineTypeHelp lst )(if (empty? lst)
                                    '()
                                    (append
@@ -124,6 +143,11 @@
                                        )
                                     (determineTypeHelp (cdr lst)))
                                    ))
+
+;; A helper function that lists the inferred types of all instances of all variables in the given formula.
+;; Variables may appear more than once with different inferred types - other helper functions analyze
+;; these types and determine what type each variable should ultimately be assigned
+(define (instance-types formula) (process-elements (rest formula) (optype? (car formula))))
 
 (define (isVoid item lst)(if (equal? (car item) 'void?)
                              (andmap (lambda (item2) (equal? (cdr item2) (cdr item))) lst)
@@ -142,6 +166,7 @@
                                             (listmax (map (lambda (f) (compute-height f (+ 1 height))) formula))
                                             height))
 
+;; Helper function for compute-height
 (define (listmax lst) (if (null? lst)
                           0
                           (max (car lst) (listmax (rest lst)))))
@@ -193,8 +218,10 @@
 ;(println "Variable declarations")
 ;(pretty-print (syntax->datum declarations))
 
-;;For Victor:
-;;Here are examples of our make-rosette-simple with the example inputs  you have provided for us above.
+;; ----------------------------------------------------------------------------
+;;                                  Check-in 3
+;; ----------------------------------------------------------------------------
+(println "--------------Type Inference--------------")
 (println "Ex 1")
 (pretty-print (make-rosette-simple (syntax (if #t (+ a 0) (- b 9)))))
 (println "Ex 2")
@@ -205,3 +232,42 @@
 (pretty-print (make-rosette-simple (syntax (min (max (+ xm (min 0 0)) lm) (min xm2 lm2)))))
 (println "Ex 5")
 (pretty-print (make-rosette-simple (syntax (if (> (+ (- xmts lmts) xpos) (+ xaux_1 xpos)) xpos lpos))))
+
+(println "--------------gen-expression--------------")
+(define-symbolic a e f o boolean?)
+(define-symbolic c d j k integer?)
+
+(define (gen x b g)
+  (gen-expression (x) (b g) 2))
+(print-forms(synthesize
+    #:forall (list a c d)
+    #:guarantee (assert (equal? (and a (< c d)) (gen a
+                                             c d)))))
+
+(define (gen2 x z b g)
+  (gen-expression (x z) (b g) 2))
+(print-forms(synthesize
+    #:forall (list a e c d)
+    #:guarantee (assert (equal? (and (or a e) (<= c d)) (gen2 a e
+                                             c d)))))
+
+(define (gen3 x y z b g h)
+  (gen-expression (x y z) (b g h) 3))
+(print-forms(synthesize
+    #:forall (list a e f c d j)
+    #:guarantee (assert (equal? (or (< (+ c d) j) (or (and a e) f)) (gen3 a e f
+                                             c d j)))))
+
+(define (gen4 x y b g h i)
+  (gen-expression (x y) (b g h i) 4))
+(print-forms(synthesize
+    #:forall (list a e c d j k)
+    #:guarantee (assert (equal? (and (or a e) (> (- c (+ d j)) k)) (gen4 a e 
+                                             c d j k)))))
+
+(define (gen5 w x y z b g h i)
+  (gen-expression (w x y z) (b g h i) 4))
+(print-forms(synthesize
+    #:forall (list a e f o c d j k)
+    #:guarantee (assert (equal? (and (or (and (<= (- c d) (+ j k)) (or a e)) f) o) (gen5 a e f o
+                                             c d j k)))))
